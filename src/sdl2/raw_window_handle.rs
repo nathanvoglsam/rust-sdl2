@@ -2,6 +2,7 @@ extern crate raw_window_handle;
 
 use self::raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use crate::{sys::SDL_Window, video::Window};
+use std::ptr::NonNull;
 
 unsafe impl HasRawWindowHandle for Window {
     #[doc(alias = "SDL_GetVersion")]
@@ -23,10 +24,21 @@ unsafe impl HasRawWindowHandle for Window {
             #[cfg(target_os = "windows")]
             SDL_SYSWM_WINDOWS => {
                 use self::raw_window_handle::windows::WindowsHandle;
-                RawWindowHandle::Windows(WindowsHandle {
-                    hwnd: unsafe { wm_info.info.win }.window as *mut libc::c_void,
-                    ..WindowsHandle::empty()
-                })
+                let info = unsafe { wm_info.info.win.window };
+                let info = info as *mut core::ffi::c_void;
+                let info = NonNull::new(info);
+                let mut handle = WindowsHandle::empty();
+                handle.hwnd = info;
+                RawWindowHandle::Windows(handle)
+            }
+            #[cfg(target_os = "windows")]
+            SDL_SYSWM_WINRT => {
+                use self::raw_window_handle::windows::WinRTHandle;
+                let core_window = unsafe { wm_info.info.uwp.core_window };
+                let core_window = NonNull::new(core_window);
+                let mut handle = WinRTHandle::empty();
+                handle.core_window = core_window;
+                RawWindowHandle::WinRT(handle)
             }
             #[cfg(any(
                 target_os = "linux",
@@ -37,11 +49,10 @@ unsafe impl HasRawWindowHandle for Window {
             ))]
             SDL_SYSWM_WAYLAND => {
                 use self::raw_window_handle::unix::WaylandHandle;
-                RawWindowHandle::Wayland(WaylandHandle {
-                    surface: unsafe { wm_info.info.wl }.surface as *mut libc::c_void,
-                    display: unsafe { wm_info.info.wl }.display as *mut libc::c_void,
-                    ..WaylandHandle::empty()
-                })
+                let mut info = WaylandHandle::empty();
+                info.surface = unsafe { wm_info.info.wl }.surface as *mut core::ffi::c_void;
+                info.display = unsafe { wm_info.info.wl }.display as *mut core::ffi::c_void;
+                RawWindowHandle::Wayland(info)
             }
             #[cfg(any(
                 target_os = "linux",
@@ -52,24 +63,27 @@ unsafe impl HasRawWindowHandle for Window {
             ))]
             SDL_SYSWM_X11 => {
                 use self::raw_window_handle::unix::XlibHandle;
-                RawWindowHandle::Xlib(XlibHandle {
-                    window: unsafe { wm_info.info.x11 }.window,
-                    display: unsafe { wm_info.info.x11 }.display as *mut libc::c_void,
-                    ..XlibHandle::empty()
-                })
+                let mut info = XlibHandle::empty();
+                info.window = unsafe { wm_info.info.x11 }.window;
+                info.display = unsafe { wm_info.info.x11 }.display as *mut core::ffi::c_void;
+                RawWindowHandle::Xlib(info)
             }
             #[cfg(target_os = "macos")]
             SDL_SYSWM_COCOA => {
                 use self::raw_window_handle::macos::MacOSHandle;
-                RawWindowHandle::MacOS(MacOSHandle {
-                    ns_window: unsafe { wm_info.info.cocoa }.window as *mut libc::c_void,
-                    ns_view: 0 as *mut libc::c_void, // consumer of RawWindowHandle should determine this
-                    ..MacOSHandle::empty()
-                })
+                let mut info = MacOSHandle::empty();
+                let ns_window = unsafe { wm_info.info.cocoa }.window as *mut core::ffi::c_void;
+                info.ns_window = NonNull::new(ns_window);
+                info.ns_view = None; // consumer of RawWindowHandle should determine this
+                RawWindowHandle::MacOS(info)
             }
             #[cfg(any(target_os = "ios"))]
             SDL_SYSWM_UIKIT => {
                 use self::raw_window_handle::ios::IOSHandle;
+                let mut info = IOSHandle::empty();
+                let ui_window = unsafe { wm_info.info.uikit }.window as *mut core::ffi::c_void;
+                info.ui_window = NonNull::new(ui_window);
+                info.ui_view = None;
                 RawWindowHandle::IOS(IOSHandle {
                     ui_window: unsafe { wm_info.info.uikit }.window as *mut libc::c_void,
                     ui_view: 0 as *mut libc::c_void, // consumer of RawWindowHandle should determine this
@@ -90,7 +104,6 @@ unsafe impl HasRawWindowHandle for Window {
                 let window_system = match x {
                     SDL_SYSWM_DIRECTFB => "DirectFB",
                     SDL_SYSWM_MIR => "Mir",
-                    SDL_SYSWM_WINRT => "WinRT",
                     SDL_SYSWM_VIVANTE => "Vivante",
                     _ => unreachable!(),
                 };
@@ -167,7 +180,8 @@ pub mod windows {
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub union WindowsSysWMinfo {
-        pub win: Handles,
+        pub win: Win32Handles,
+        pub uwp: WinRTHandles,
         pub dummy: [u8; 64usize],
         _bindgen_union_align: [u64; 8usize],
     }
@@ -175,25 +189,39 @@ pub mod windows {
     impl Default for WindowsSysWMinfo {
         fn default() -> Self {
             WindowsSysWMinfo {
-                win: Handles::default(),
+                win: Win32Handles::default(),
             }
         }
     }
 
     #[repr(C)]
     #[derive(Debug, Copy, Clone, PartialEq)]
-    pub struct Handles {
+    pub struct Win32Handles {
         pub window: *mut HWND,
         pub hdc: *mut HDC,
         pub hinstance: *mut HINSTANCE,
     }
 
-    impl Default for Handles {
+    impl Default for Win32Handles {
         fn default() -> Self {
-            Handles {
+            Win32Handles {
                 window: 0 as *mut HWND,
                 hdc: 0 as *mut HDC,
                 hinstance: 0 as *mut HINSTANCE,
+            }
+        }
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone, PartialEq)]
+    pub struct WinRTHandles {
+        pub core_window: *mut core::ffi::c_void,
+    }
+
+    impl Default for WinRTHandles {
+        fn default() -> Self {
+            WinRTHandles {
+                core_window: core::ptr::null_mut(),
             }
         }
     }
