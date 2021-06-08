@@ -36,7 +36,7 @@ futures = "^0.3"
 [dependencies.raw-window-handle]
 git = "https://github.com/rust-windowing/raw-window-handle.git"
 branch = "master"
-version = "0.3.3"
+version = "0.4.0"
 optional = true
 
 [features]
