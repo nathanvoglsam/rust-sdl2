@@ -23,11 +23,11 @@ unsafe impl HasRawWindowHandle for Window {
         match wm_info.subsystem {
             #[cfg(target_os = "windows")]
             SDL_SYSWM_WINDOWS => {
-                use self::raw_window_handle::Win32;
+                use self::raw_window_handle::Win32Handle;
                 let info = unsafe { wm_info.info.win.window };
                 let info = info as *mut core::ffi::c_void;
                 let info = NonNull::new(info);
-                let mut handle = WindowsHandle::empty();
+                let mut handle = Win32Handle::empty();
                 handle.hwnd = info;
                 RawWindowHandle::Win32(handle)
             }
