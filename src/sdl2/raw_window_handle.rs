@@ -26,7 +26,6 @@ unsafe impl HasRawWindowHandle for Window {
                 use self::raw_window_handle::Win32Handle;
                 let info = unsafe { wm_info.info.win.window };
                 let info = info as *mut core::ffi::c_void;
-                let info = NonNull::new(info);
                 let mut handle = Win32Handle::empty();
                 handle.hwnd = info;
                 RawWindowHandle::Win32(handle)
@@ -35,7 +34,6 @@ unsafe impl HasRawWindowHandle for Window {
             SDL_SYSWM_WINRT => {
                 use self::raw_window_handle::WinRtHandle;
                 let core_window = unsafe { wm_info.info.uwp.core_window };
-                let core_window = NonNull::new(core_window);
                 let mut handle = WinRtHandle::empty();
                 handle.core_window = core_window;
                 RawWindowHandle::WinRt(handle)
