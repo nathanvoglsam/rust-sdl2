@@ -46,7 +46,7 @@ unsafe impl HasRawWindowHandle for Window {
                 target_os = "openbsd",
             ))]
             SDL_SYSWM_WAYLAND => {
-                use self::raw_window_handle::unix::WaylandHandle;
+                use self::raw_window_handle::WaylandHandle;
                 let mut info = WaylandHandle::empty();
                 info.surface = unsafe { wm_info.info.wl }.surface as *mut core::ffi::c_void;
                 info.display = unsafe { wm_info.info.wl }.display as *mut core::ffi::c_void;
@@ -60,7 +60,7 @@ unsafe impl HasRawWindowHandle for Window {
                 target_os = "openbsd",
             ))]
             SDL_SYSWM_X11 => {
-                use self::raw_window_handle::unix::XlibHandle;
+                use self::raw_window_handle::XlibHandle;
                 let mut info = XlibHandle::empty();
                 info.window = unsafe { wm_info.info.x11 }.window;
                 info.display = unsafe { wm_info.info.x11 }.display as *mut core::ffi::c_void;
@@ -68,25 +68,19 @@ unsafe impl HasRawWindowHandle for Window {
             }
             #[cfg(target_os = "macos")]
             SDL_SYSWM_COCOA => {
-                use self::raw_window_handle::macos::MacOSHandle;
+                use self::raw_window_handle::MacOSHandle;
                 let mut info = MacOSHandle::empty();
-                let ns_window = unsafe { wm_info.info.cocoa }.window as *mut core::ffi::c_void;
-                info.ns_window = NonNull::new(ns_window);
-                info.ns_view = None; // consumer of RawWindowHandle should determine this
+                info.ns_window = unsafe { wm_info.info.cocoa }.window as *mut core::ffi::c_void;
+                info.ns_view = core::ptr::null_mut(); // consumer of RawWindowHandle should determine this
                 RawWindowHandle::MacOS(info)
             }
             #[cfg(any(target_os = "ios"))]
             SDL_SYSWM_UIKIT => {
-                use self::raw_window_handle::ios::IOSHandle;
-                let mut info = IOSHandle::empty();
-                let ui_window = unsafe { wm_info.info.uikit }.window as *mut core::ffi::c_void;
-                info.ui_window = NonNull::new(ui_window);
-                info.ui_view = None;
-                RawWindowHandle::IOS(IOSHandle {
-                    ui_window: unsafe { wm_info.info.uikit }.window as *mut libc::c_void,
-                    ui_view: 0 as *mut libc::c_void, // consumer of RawWindowHandle should determine this
-                    ..IOSHandle::empty()
-                })
+                use self::raw_window_handle::UiKitHandle;
+                let mut info = UiKitHandle::empty();
+                info.ui_window = unsafe { wm_info.info.uikit }.window as *mut core::ffi::c_void;
+                info.ui_view = core::ptr::null_mut();
+                RawWindowHandle::UiKit(info)
             }
             SDL_SYSWM_ANDROID => {
                 let window_system = match wm_info.subsystem {
