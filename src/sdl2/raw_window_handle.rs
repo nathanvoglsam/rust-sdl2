@@ -33,10 +33,10 @@ unsafe impl HasRawWindowHandle for Window {
             }
             #[cfg(target_os = "windows")]
             SDL_SYSWM_WINRT => {
-                use self::raw_window_handle::WinRTHandle;
+                use self::raw_window_handle::WinRtHandle;
                 let core_window = unsafe { wm_info.info.uwp.core_window };
                 let core_window = NonNull::new(core_window);
-                let mut handle = WinRTHandle::empty();
+                let mut handle = WinRtHandle::empty();
                 handle.core_window = core_window;
                 RawWindowHandle::WinRT(handle)
             }
