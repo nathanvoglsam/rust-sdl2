@@ -38,7 +38,7 @@ unsafe impl HasRawWindowHandle for Window {
                 let core_window = NonNull::new(core_window);
                 let mut handle = WinRtHandle::empty();
                 handle.core_window = core_window;
-                RawWindowHandle::WinRT(handle)
+                RawWindowHandle::WinRt(handle)
             }
             #[cfg(any(
                 target_os = "linux",
